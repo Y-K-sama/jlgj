@@ -12,12 +12,14 @@
   },
   "dependencies": {
     "@vueuse/core": "^9.2.0",
+    "fabric": "^5.2.4",
     "vue": "^3.2.38",
     "vue-router": "^4.1.5"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^0.26.3",
     "@iconify-json/carbon": "^1.1.7",
+    "@types/fabric": "^4.5.12",
     "@types/node": "^18.7.15",
     "@unocss/reset": "^0.45.15",
     "@vitejs/plugin-vue": "^3.1.0",
