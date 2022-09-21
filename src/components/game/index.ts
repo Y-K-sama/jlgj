@@ -14,7 +14,12 @@ export const calcRectStatus = (rectList: Rect[]) => {
     let nHave = true
     for (let i = oi + 1; i < len; i++) {
       const el = rectList[i]
-      if ((el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft)) {
+      if (
+        (el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft)
+        || (el.point.t + 1 >= item.point.t && el.point.t + 1 <= maxTop) && (el.point.l + 1 >= item.point.l && el.point.l + 1 <= maxLeft)
+        || (el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l + 1 >= item.point.l && el.point.l + 1 <= maxLeft)
+        || (el.point.t + 1 >= item.point.t && el.point.t + 1 <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft)
+        ) {
         console.log('满足了')
         if (el.zIndex >= item.zIndex) {
           item.status = false

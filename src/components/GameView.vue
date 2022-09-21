@@ -129,7 +129,6 @@ onMounted(() => {
         @click="handlerClick(item)"
       >
         {{ item.type }}
-        {{ Math.floor(item.point.t) }}
       </li>
       <li
         z="-1"
@@ -142,7 +141,7 @@ onMounted(() => {
           left: `${gameArea.w * 1.5}px`,
         }"
       >
-        ''
+        &nbsp;
       </li>
     </template>
   </ul>
