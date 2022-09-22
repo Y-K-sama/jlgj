@@ -1,5 +1,6 @@
-import { getRandom } from '../../utils'
+// import { getRandom } from '../../utils'
 import Rect from './Rect'
+import type { GameLevelType } from './options'
 
 /**
  * 计算元素状态
@@ -15,12 +16,11 @@ export const calcRectStatus = (rectList: Rect[]) => {
     for (let i = oi + 1; i < len; i++) {
       const el = rectList[i]
       if (
-        (el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft)
-        || (el.point.t + 1 >= item.point.t && el.point.t + 1 <= maxTop) && (el.point.l + 1 >= item.point.l && el.point.l + 1 <= maxLeft)
-        || (el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l + 1 >= item.point.l && el.point.l + 1 <= maxLeft)
-        || (el.point.t + 1 >= item.point.t && el.point.t + 1 <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft)
-        ) {
-        console.log('满足了')
+        ((el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft))
+        || ((el.point.t + 1 >= item.point.t && el.point.t + 1 <= maxTop) && (el.point.l + 1 >= item.point.l && el.point.l + 1 <= maxLeft))
+        || ((el.point.t >= item.point.t && el.point.t <= maxTop) && (el.point.l + 1 >= item.point.l && el.point.l + 1 <= maxLeft))
+        || ((el.point.t + 1 >= item.point.t && el.point.t + 1 <= maxTop) && (el.point.l >= item.point.l && el.point.l <= maxLeft))
+      ) {
         if (el.zIndex >= item.zIndex) {
           item.status = false
           nHave = false
@@ -32,19 +32,26 @@ export const calcRectStatus = (rectList: Rect[]) => {
       item.status = true
   })
 }
-export default function () {
+export default function (level: GameLevelType) {
   const rectList: Rect[] = []
-  for (let i = 0; i < 40; i++) {
-    const b = new Rect({
-      t: getRandom(1, 8),
-      l: getRandom(1, 8),
-      type: `${i}`,
-      bg: `rgba(${getRandom(0, 255)},${getRandom(0, 255)},${getRandom(0, 255)},${getRandom(1, 1)})`,
-      // status: getRandom() > 0.5,
-      zIndex: i,
-    })
-    rectList.push(b)
+  // console.log(level.bg)
+  const bgList: string[] = []
+  let n = Math.ceil(level.point.length / level.bg.length)
+  while (n > 0) {
+    n--
+    bgList.push(...level.bg)
   }
+  bgList.sort(() => Math.random() - 0.5)
+  level.point.forEach((item, index) => {
+    rectList.push(new Rect({
+      l: item[0],
+      t: item[1],
+      bg: bgList[index],
+      zIndex: index,
+      type: bgList[index],
+      id: index,
+    }))
+  })
   calcRectStatus(rectList)
   return {
     rectList,

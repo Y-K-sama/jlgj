@@ -5,7 +5,20 @@
  */
 import { findLastIndex, waitOneMinute } from '../utils'
 import game, { calcRectStatus } from './game'
+import { GameStatus } from './game/options'
+import type { GameLevelType } from './game/options'
 import type Rect from './game/Rect'
+const props = defineProps<{
+  gameLe: GameLevelType
+  /**
+   * 开始游戏：start值改变时开始
+   */
+  start: boolean
+}>()
+const emits = defineEmits(['over'])
+watch(() => props.start, () => {
+  create()
+})
 interface GameAreaType {
   w: number
   slotTop: number
@@ -13,10 +26,17 @@ interface GameAreaType {
 const fDom = ref<HTMLElement>()
 const gameList = ref<Rect[]>()
 const gameArea = ref<GameAreaType>()
+
+const gameStatus = ref<GameStatus>(GameStatus.init)
+
 function create() {
+  gameStatus.value = GameStatus.init
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  activeRectList.length = 0
   gameArea.value = createGameArea()
-  const gameObj = game()
+  const gameObj = game(props.gameLe)
   gameList.value = gameObj.rectList
+  gameStatus.value = GameStatus.playing
   // }
 }
 /**
@@ -28,96 +48,102 @@ function createGameArea(): GameAreaType {
     slotTop: 0,
   }
   if (fDom.value) {
-    result.w = fDom.value.clientWidth / 10
-    const y = fDom.value.clientHeight - fDom.value.clientWidth
-    if (y > result.w * 2)
-      result.slotTop = Math.ceil(y / result.w) + 8
-    else
-      alert('不支持当前屏幕')
+    result.w = fDom.value.clientWidth / 8
+    result.slotTop = (fDom.value.clientHeight - 100 - result.w) / result.w
   }
   return result
 }
 const activeRectList: Rect[] = []
-const activeRectType: string[] = []
-let isMove = false
 function sortActiveRect() {
   activeRectList.forEach((item, index) => {
-    item.point.l = index + 1.5
+    item.point.l = index + 0.5
   })
 }
 // 开启动画
 async function handlerClick(rect: Rect) {
-  if (isMove || !rect.status || activeRectList.length >= 7)
+  if (!rect.status || activeRectList.length >= 7 || activeRectList.includes(rect) || gameStatus.value !== GameStatus.playing)
     return
-  // isMove = true
   rect.point.t = gameArea.value!.slotTop
-  // rect.point.l = activeRectList.length + 1.5
+  // 获取选中的相同 type 最后一个的下一个下标
   const lastIndex = findLastIndex<Rect>(activeRectList, (item) => {
     return item.type === rect.type
   })
-  // const lastIndex = activeRectList.findIndex(item => item.type === rect.type)
-  if (lastIndex === -1) {
+  rect.zIndex = 9999999
+  if (lastIndex === -1)
     activeRectList.push(rect)
-    activeRectType.push(rect.type)
-  }
-  else { activeRectList.splice(lastIndex, 0, rect) }
+
+  else activeRectList.splice(lastIndex, 0, rect)
   sortActiveRect()
   calcRectStatus(gameList.value!)
+  // activeRectType.forEach((item) => {
+  const dArr = activeRectList.filter(el => el.type === rect.type && !el.fOver)
+  // 不满3直接结束
+  if (dArr.length < 3) {
+    if (activeRectList.filter(item => !item.fOver).length >= 7) {
+      await waitOneMinute()
+      gameStatus.value = GameStatus.fail
+      emits('over', GameStatus.fail)
+    }
+    return
+  }
+  for (let i = 0; i < 3; i++)
+    dArr[i].fOver = true
+  // })
   // 记录选中元素的数量
-  let len = activeRectList.length
+  let len = activeRectList.filter(item => !item.fOver).length
+
+  await waitOneMinute()
+  dArr.forEach((item) => {
+    item.dOver = true
+  })
   await waitOneMinute()
   // 删除三个相等的
-  let delType: string | undefined
-  activeRectType.forEach((item) => {
-    const arr = activeRectList.filter(el => el.type === item)
-    if (arr.length >= 3) {
-      delType = arr[0].type
-      for (let i = 0; i < 3; i++)
-        arr[i].over = true
-    }
+  dArr.forEach((item) => {
+    item.over = true
   })
-  if (delType !== undefined) {
-    const index = activeRectList.findIndex(item => item.type === delType)
-    const arr = activeRectList.splice(index, 3)
-    sortActiveRect()
-    // 删除相同之后重新计算长度
-    len = activeRectList.length
-    await waitOneMinute()
-    gameList.value = gameList.value?.filter(item => !arr.includes(item))
+  // })
+  // console.log(delType)
+  dArr.forEach((item) => {
+    activeRectList.splice(
+      activeRectList.findIndex(it => it === item),
+      1,
+    )
+  })
+  sortActiveRect()
+  // 删除相同之后重新计算长度
+  len = activeRectList.filter(item => !item.fOver).length
+  await waitOneMinute()
+  gameList.value = gameList.value?.filter(item => !dArr.includes(item))
+  if (gameList.value?.length === 0) {
+    gameStatus.value = GameStatus.win
+    // console.log('游戏完成')
+    emits('over', GameStatus.win)
   }
-
-  if (len >= 7)
-    alert('游戏结束')
-  isMove = false
+  if (len >= 7) {
+    gameStatus.value = GameStatus.fail
+    emits('over', GameStatus.fail)
+  }
 }
-/**
- * 点击元素
- */
-
-onMounted(() => {
-  nextTick(() => {
-    create()
-  })
-})
 </script>
 
 <template>
-  <ul ref="fDom" of-hidden pos-relative border w="100%" h="100%">
+  <ul ref="fDom" of-hidden pos-relative w="100%" h="100%">
     <template v-if="gameArea">
       <li
         v-for="(item) in gameList"
-        :key="item.type"
+        :key="item.id"
+        class="box"
         :class="{
-          not: !item.status,
-          over: item.over,
+          not: (!item.status && !activeRectList.includes(item) && !item.fOver),
+          over: item.dOver,
         }"
-        b="2 #999"
         z-2
         pos-absolute
         box-border
         b-rd-5px
         transition-all-300
         text-center
+        of-hidden
         :style="{
           top: `${item.point.t * gameArea.w}px`,
           left: `${item.point.l * gameArea.w}px`,
@@ -128,37 +154,66 @@ onMounted(() => {
         }"
         @click="handlerClick(item)"
       >
-        {{ item.type }}
-      </li>
-      <li
-        z="-1"
-        pos-absolute
-        bg-red
-        :style="{
-          top: `${gameArea.slotTop * gameArea.w}px`,
-          width: `${7 * gameArea.w}px`,
-          height: `${gameArea.w}px`,
-          left: `${gameArea.w * 1.5}px`,
-        }"
-      >
-        &nbsp;
+        <div
+          class="box-cnt"
+          :class="[`level${gameLe.borderBg}`]"
+          b-6px
+        />
       </li>
     </template>
+    <ul
+      v-if="gameArea"
+      z="1"
+      pos-absolute
+      class="active-box"
+      bottom-100px
+      :style="{
+        width: `${7 * gameArea.w}px`,
+        height: `${gameArea.w}px`,
+        left: `${gameArea.w * 0.5}px`,
+      }"
+      flex
+      b="~ l-0 black"
+    >
+      <li v-for="item in 7" :key="item" flex-1 b-l b-black />
+    </ul>
   </ul>
 </template>
 
 <style scoped>
-.not::after {
-  position: absolute;
+.box {
+  background-size: 100% 100% !important;
+}
+.box-cnt {
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, .8);
-  top: 0;
-  left: 0;
-  border-radius: 5px;
+}
+.level1 {
+  border-image: url('~/assets/image/border/level1.png') 10 10 10 10 repeat;
+}
+.level2 {
+  border-image: url('~/assets/image/border/level2.png') 10 10 10 10 repeat;
+}
+.level3 {
+  border-image: url('~/assets/image/border/level3.png') 10 10 10 10 repeat;
+}
+.not::after {
+  position: absolute;
+  background-color: rgba(0, 0, 0, .5);
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  border-radius: 2px;
   content: '';
 }
 .over {
-  transform: scale(0.1);
+  transform: scale(0);
+}
+.active-box {
+  background-image: url('~/assets/image/active-bg.png');
+  background-size: 100% auto;
+  background-position: 50% 50%;
+  transform: translateY(-1px);
 }
 </style>
