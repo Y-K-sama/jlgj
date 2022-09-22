@@ -49,8 +49,9 @@ export default defineConfig({
     // see unocss.config.ts for config
     Unocss(),
   ],
+  base: '/jlgj/docs',
   build: {
-    outDir: 'server',
+    outDir: 'docs',
   },
 
   // https://github.com/vitest-dev/vitest
